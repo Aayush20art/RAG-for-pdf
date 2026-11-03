@@ -104,7 +104,6 @@ st.markdown(
 st.title("PDF Semantic Search 🔴")
 st.write("Upload a PDF and ask questions about its contents.")
 
-# 1. Cache the embeddings model so it doesn't reload
 @st.cache_resource
 def get_embeddings_model():
     return HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
@@ -112,7 +111,20 @@ def get_embeddings_model():
 embeddings = get_embeddings_model()
 client = Groq(api_key=GROQ_API_KEY)
 
-# 2. Cache the PDF vector store creation so it doesn't re-read the PDF on every keystroke
+# 1. Fetch available models dynamically and put them in the Sidebar
+with st.sidebar:
+    st.markdown("### AI Settings")
+    try:
+        available_models = client.models.list().data
+        # Filter out audio (whisper) and moderation (guard) models
+        model_options = [m.id for m in available_models if "whisper" not in m.id and "guard" not in m.id]
+    except Exception:
+        # Fallback if the API fetch fails
+        model_options = ["llama-3.3-70b-versatile"]
+    
+    selected_model = st.selectbox("Select Model", model_options, index=0)
+
+
 @st.cache_resource(show_spinner=False)
 def process_pdf_to_vectorstore(file_bytes):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
@@ -139,13 +151,11 @@ if uploaded_file is not None:
         
     st.success("PDF processed successfully!")
 
-    # 3. Put the search inside a Form to prevent premature reruns
     with st.form("search_form"):
         query = st.text_input("What would you like to know about this document?")
         submitted = st.form_submit_button("Ask Question")
     
     if submitted and query:
-        # Retrieve the most relevant text chunks from the PDF
         results = vector_store.similarity_search(query, k=2)
         context_text = "\n\n".join([res.page_content for res in results])
         
@@ -161,6 +171,7 @@ if uploaded_file is not None:
         
         with st.spinner("Thinking..."):
             try:
+                # 2. Use the dynamically selected model
                 chat_completion = client.chat.completions.create(
                     messages=[
                         {
@@ -172,23 +183,21 @@ if uploaded_file is not None:
                             "content": prompt,
                         }
                     ],
-                    model="llama-3.1-8b-instant", 
+                    model=selected_model, 
                     temperature=0.2,
                     max_tokens=1024
                 )
                 
-                # Extract and display the answer
                 answer = chat_completion.choices[0].message.content
                 
                 st.markdown("### Answer")
                 st.info(answer)
                 
-                # Optional: Keep the retrieved text hidden in an expander for debugging
                 with st.expander("View Retrieved Context"):
                     st.write(context_text)
 
             except Exception as e:
-                st.error("There was an error communicating with the Groq API.")
+                st.error(f"There was an error communicating with the Groq API using model '{selected_model}'.")
                 st.error(str(e))
                 with st.expander("Show detailed error trace"):
                     st.code(traceback.format_exc())
