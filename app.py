@@ -172,7 +172,7 @@ if uploaded_file is not None:
                             "content": prompt,
                         }
                     ],
-                    model="llama3-8b-8192", 
+                    model="llama-3.1-8b-instant", 
                     temperature=0.2,
                     max_tokens=1024
                 )
