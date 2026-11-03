@@ -1,8 +1,8 @@
 import os
 import tempfile
+import traceback
 
 import streamlit as st
-import groq
 from groq import Groq
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_core.vectorstores import InMemoryVectorStore
@@ -19,9 +19,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-
 # ---------------------------------------------------------------------------
-# Groq API key: add GROQ_API_KEY to Streamlit Cloud > App > Settings > Secrets
+# Groq API key
 # ---------------------------------------------------------------------------
 try:
     GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
@@ -105,45 +104,91 @@ st.markdown(
 st.title("PDF Semantic Search 🔴")
 st.write("Upload a PDF and ask questions about its contents.")
 
-# Cache the embeddings model so it doesn't reload on every interaction
+# 1. Cache the embeddings model so it doesn't reload
 @st.cache_resource
 def get_embeddings_model():
     return HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
 embeddings = get_embeddings_model()
-
-# Initialize Groq client
 client = Groq(api_key=GROQ_API_KEY)
+
+# 2. Cache the PDF vector store creation so it doesn't re-read the PDF on every keystroke
+@st.cache_resource(show_spinner=False)
+def process_pdf_to_vectorstore(file_bytes):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(file_bytes)
+        tmp_file_path = tmp_file.name
+
+    loader = PyPDFLoader(tmp_file_path)
+    docs = loader.load_and_split()
+    
+    vector_store = InMemoryVectorStore(embedding=embeddings)
+    vector_store.add_documents(docs)
+    
+    os.remove(tmp_file_path)
+    return vector_store
+
 
 # File Uploader
 uploaded_file = st.file_uploader("Upload your PDF document", type=["pdf"])
 
 if uploaded_file is not None:
-    # Save the uploaded file to a temporary location so PyPDFLoader can read it
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-        tmp_file.write(uploaded_file.getvalue())
-        tmp_file_path = tmp_file.name
-
     with st.spinner("Processing PDF and generating embeddings..."):
-        # Load and split the document
-        loader = PyPDFLoader(tmp_file_path)
-        docs = loader.load_and_split()
+        file_bytes = uploaded_file.getvalue()
+        vector_store = process_pdf_to_vectorstore(file_bytes)
         
-        # Create vector store and add documents
-        vector_store = InMemoryVectorStore(embedding=embeddings)
-        vector_store.add_documents(docs)
-        
-        st.success("PDF processed successfully!")
+    st.success("PDF processed successfully!")
 
-    # Search Interface
-    st.subheader("Ask a Question")
-    query = st.text_input("What would you like to know about this document?")
+    # 3. Put the search inside a Form to prevent premature reruns
+    with st.form("search_form"):
+        query = st.text_input("What would you like to know about this document?")
+        submitted = st.form_submit_button("Ask Question")
     
-    if query:
-        # 1. Retrieve the most relevant text chunks from the PDF
+    if submitted and query:
+        # Retrieve the most relevant text chunks from the PDF
         results = vector_store.similarity_search(query, k=2)
-        
-        # 2. Combine the retrieved chunks into a single context string
         context_text = "\n\n".join([res.page_content for res in results])
         
-        # 3. Create
+        prompt = f"""
+        Answer the following question based ONLY on the provided context from the user's document.
+        If the answer is not contained in the context, say "I cannot answer this based on the uploaded document."
+        
+        Context:
+        {context_text}
+        
+        Question: {query}
+        """
+        
+        with st.spinner("Thinking..."):
+            try:
+                chat_completion = client.chat.completions.create(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a helpful assistant that answers questions accurately based on the provided context."
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        }
+                    ],
+                    model="llama3-8b-8192", 
+                    temperature=0.2,
+                    max_tokens=1024
+                )
+                
+                # Extract and display the answer
+                answer = chat_completion.choices[0].message.content
+                
+                st.markdown("### Answer")
+                st.info(answer)
+                
+                # Optional: Keep the retrieved text hidden in an expander for debugging
+                with st.expander("View Retrieved Context"):
+                    st.write(context_text)
+
+            except Exception as e:
+                st.error("There was an error communicating with the Groq API.")
+                st.error(str(e))
+                with st.expander("Show detailed error trace"):
+                    st.code(traceback.format_exc())
