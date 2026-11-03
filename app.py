@@ -146,39 +146,4 @@ if uploaded_file is not None:
         # 2. Combine the retrieved chunks into a single context string
         context_text = "\n\n".join([res.page_content for res in results])
         
-        # 3. Create a prompt instructing the LLM to answer using only the context
-        prompt = f"""
-        Answer the following question based ONLY on the provided context from the user's document.
-        If the answer is not contained in the context, say "I cannot answer this based on the uploaded document."
-        
-        Context:
-        {context_text}
-        
-        Question: {query}
-        """
-        
-        with st.spinner("Thinking..."):
-            # 4. Send the prompt to Groq to generate the final answer
-            chat_completion = client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    }
-                ],
-                model="llama3-8b-8192", # Using Llama 3 8B model via Groq
-                temperature=0.2,
-            )
-            
-            # Extract and display the answer
-            answer = chat_completion.choices[0].message.content
-            
-            st.markdown("### Answer")
-            st.write(answer)
-            
-            # Optional: Keep the retrieved text hidden in an expander for debugging
-            with st.expander("View Retrieved Context"):
-                st.write(context_text)
-
-    # Clean up the temporary file
-    os.remove(tmp_file_path)
+        # 3. Create
