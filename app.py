@@ -12,8 +12,8 @@ from langchain_community.document_loaders import PyPDFLoader
 # Page configuration
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Neon PDF Assistant",
-    page_icon="⚡",
+    page_title="PDF Assistant",
+    page_icon="🟣",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -30,94 +30,78 @@ except (KeyError, FileNotFoundError):
     st.stop()
 
 # ---------------------------------------------------------------------------
-# Cyberpunk / Neon Theme CSS
+# Black & Purple Theme CSS
 # ---------------------------------------------------------------------------
 st.markdown(
     """
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
         /* Main App Background */
         .stApp {
-            background-color: #06070d;
-            background-image: radial-gradient(circle at 50% 0%, #150a21, #06070d 80%);
+            background-color: #050505;
             color: #e0e0e0;
             font-family: 'Inter', sans-serif;
         }
 
-        /* Neon Headers */
+        /* Headers */
         h1, h2, h3 { 
-            font-family: 'Orbitron', sans-serif !important; 
-            color: #00ffff !important; 
-            text-shadow: 0 0 5px #00ffff, 0 0 15px rgba(0, 255, 255, 0.6) !important;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            font-family: 'Inter', sans-serif !important; 
+            color: #a855f7 !important; /* Elegant Purple */
+            font-weight: 600 !important;
         }
 
         /* Sidebar Styling */
         section[data-testid="stSidebar"] {
-            background: rgba(10, 5, 20, 0.7);
-            border-right: 1px solid #b900ff;
-            box-shadow: 2px 0 15px rgba(185, 0, 255, 0.2);
-            backdrop-filter: blur(10px);
+            background: #0a0a0a;
+            border-right: 1px solid #2d1b4e;
         }
 
-        /* File Uploader Pulse Animation */
+        /* File Uploader */
         [data-testid="stFileUploader"] {
-            background: rgba(20, 10, 30, 0.6);
-            border: 2px dashed #b900ff;
-            border-radius: 12px;
+            background: #0f0f0f;
+            border: 1px dashed #7e22ce;
+            border-radius: 8px;
             padding: 1.5rem;
-            animation: neon-pulse 2s infinite alternate;
-        }
-        @keyframes neon-pulse {
-            0% { box-shadow: 0 0 5px rgba(185, 0, 255, 0.2), inset 0 0 5px rgba(185, 0, 255, 0.2); }
-            100% { box-shadow: 0 0 15px rgba(185, 0, 255, 0.8), inset 0 0 10px rgba(185, 0, 255, 0.5); }
         }
 
-        /* Chat Bubbles (Glassmorphism) */
+        /* Chat Bubbles */
         [data-testid="stChatMessage"] {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(0, 255, 255, 0.2);
-            border-radius: 15px;
+            background: #121212;
+            border: 1px solid #1f1f1f;
+            border-radius: 8px;
             padding: 1rem;
-            backdrop-filter: blur(8px);
             margin-bottom: 1rem;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
         
         /* User/Assistant Avatars */
-        [data-testid="chatAvatarIcon-user"] { background-color: #b900ff !important; color: white !important; }
-        [data-testid="chatAvatarIcon-assistant"] { background-color: #00ffff !important; color: black !important; }
+        [data-testid="chatAvatarIcon-user"] { background-color: #7e22ce !important; color: white !important; }
+        [data-testid="chatAvatarIcon-assistant"] { background-color: #3b0764 !important; color: white !important; }
 
-        /* Neon Buttons */
+        /* Buttons */
         .stButton > button {
-            background: transparent !important;
-            color: #00ffff !important;
-            border: 1px solid #00ffff !important;
-            border-radius: 8px;
-            font-weight: 600;
+            background: #7e22ce !important;
+            color: #ffffff !important;
+            border: none !important;
+            border-radius: 6px;
+            font-weight: 500;
             padding: 0.5rem 1.2rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 0 8px rgba(0, 255, 255, 0.3) inset;
+            transition: background 0.2s ease;
             width: 100%;
         }
         .stButton > button:hover {
-            background: #00ffff !important;
-            color: #000 !important;
-            box-shadow: 0 0 15px #00ffff, inset 0 0 10px #00ffff !important;
-            transform: translateY(-2px);
+            background: #9333ea !important;
+            color: #ffffff !important;
         }
 
         /* Chat Input Field */
         .stChatInputContainer > div {
-            background: #0d0e15 !important;
-            border: 1px solid #b900ff !important;
-            box-shadow: 0 0 10px rgba(185, 0, 255, 0.3) !important;
-            border-radius: 10px !important;
+            background: #0f0f0f !important;
+            border: 1px solid #3b0764 !important;
+            border-radius: 8px !important;
         }
         .stChatInputContainer textarea {
-            color: #fff !important;
+            color: #ffffff !important;
         }
     </style>
     """,
@@ -127,8 +111,8 @@ st.markdown(
 # ---------------------------------------------------------------------------
 # App Logic & Initialization
 # ---------------------------------------------------------------------------
-st.title("NEON_PDF_ASSISTANT ⚡")
-st.markdown("*Upload data protocols. Initialize semantic query interface.*")
+st.title("PDF Assistant 🟣")
+st.write("Upload a PDF document to begin the conversation.")
 
 # Initialize Chat History in Session State
 if "messages" not in st.session_state:
@@ -145,17 +129,17 @@ client = Groq(api_key=GROQ_API_KEY)
 # Sidebar Settings
 # ---------------------------------------------------------------------------
 with st.sidebar:
-    st.markdown("### SYSTEM SETTINGS ⚙️")
+    st.markdown("### Settings")
     try:
         available_models = client.models.list().data
         model_options = [m.id for m in available_models if "whisper" not in m.id and "guard" not in m.id]
     except Exception:
         model_options = ["llama-3.3-70b-versatile"]
     
-    selected_model = st.selectbox("Select Neural Core (Model)", model_options, index=0)
+    selected_model = st.selectbox("Select Model", model_options, index=0)
     
     st.markdown("---")
-    if st.button("🗑️ Clear Chat History"):
+    if st.button("Clear Chat History"):
         st.session_state.messages = []
         st.rerun()
 
@@ -177,14 +161,14 @@ def process_pdf_to_vectorstore(file_bytes):
     os.remove(tmp_file_path)
     return vector_store
 
-uploaded_file = st.file_uploader("UPLOAD DATABANK (PDF)", type=["pdf"])
+uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
 vector_store = None
 
 if uploaded_file is not None:
-    with st.spinner("Extracting databank vectors..."):
+    with st.spinner("Processing document..."):
         file_bytes = uploaded_file.getvalue()
         vector_store = process_pdf_to_vectorstore(file_bytes)
-    st.success("DATABANK LINK ESTABLISHED.")
+    st.success("Document processed successfully. You can now ask questions.")
 
 # ---------------------------------------------------------------------------
 # Chat UI & Conversational Logic
@@ -196,7 +180,7 @@ for msg in st.session_state.messages:
 
 # Only show the chat input if a PDF is loaded
 if vector_store is not None:
-    query = st.chat_input("Enter query command...")
+    query = st.chat_input("Ask a question about the document...")
     
     if query:
         # 1. Display user query immediately
@@ -243,20 +227,20 @@ if vector_store is not None:
                     if chunk.choices[0].delta.content:
                         full_response += chunk.choices[0].delta.content
                         # Add a blinking cursor effect while streaming
-                        response_placeholder.markdown(full_response + " █")
+                        response_placeholder.markdown(full_response + " ▌")
                 
                 # Final output without the cursor
                 response_placeholder.markdown(full_response)
                 
-                with st.expander("🔍 View Retrieved Context"):
+                with st.expander("View Retrieved Context"):
                     st.write(context_text)
                     
                 # Save the final response to chat history
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
 
             except Exception as e:
-                st.error(f"SYSTEM ERROR: Connection to neural core '{selected_model}' failed.")
+                st.error(f"Error communicating with model '{selected_model}'.")
                 with st.expander("Show detailed error trace"):
                     st.code(traceback.format_exc())
 else:
-    st.info("Awaiting PDF upload to initialize chat interface...")
+    st.info("Please upload a PDF to start chatting.")
