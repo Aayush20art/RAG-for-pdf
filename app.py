@@ -94,5 +94,6 @@ st.markdown(
             border-radius: 10px;
             padding: 1rem;
         }
-        """
+        """,
+        unsafe_allow_html=True
 )
