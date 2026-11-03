@@ -94,3 +94,5 @@ st.markdown(
             border-radius: 10px;
             padding: 1rem;
         }
+        """
+)
