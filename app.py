@@ -94,6 +94,56 @@ st.markdown(
             border-radius: 10px;
             padding: 1rem;
         }
-        """,
-        unsafe_allow_html=True
+    </style>
+    """,
+    unsafe_allow_html=True
 )
+
+# ---------------------------------------------------------------------------
+# App Logic
+# ---------------------------------------------------------------------------
+st.title("PDF Semantic Search 🔴")
+st.write("Upload a PDF and search through its contents using HuggingFace Embeddings.")
+
+# Cache the embeddings model so it doesn't reload on every interaction
+@st.cache_resource
+def get_embeddings_model():
+    return HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+
+embeddings = get_embeddings_model()
+
+# File Uploader
+uploaded_file = st.file_uploader("Upload your PDF document", type=["pdf"])
+
+if uploaded_file is not None:
+    # Save the uploaded file to a temporary location so PyPDFLoader can read it
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(uploaded_file.getvalue())
+        tmp_file_path = tmp_file.name
+
+    with st.spinner("Processing PDF and generating embeddings..."):
+        # Load and split the document
+        loader = PyPDFLoader(tmp_file_path)
+        docs = loader.load_and_split()
+        
+        # Create vector store and add documents
+        vector_store = InMemoryVectorStore(embedding=embeddings)
+        vector_store.add_documents(docs)
+        
+        st.success("PDF processed successfully!")
+
+    # Search Interface
+    st.subheader("Search Document")
+    query = st.text_input("Enter your search query:")
+    
+    if query:
+        # Perform similarity search
+        results = vector_store.similarity_search(query, k=2)
+        
+        st.write(f"**Top results for:** '{query}'")
+        for i, res in enumerate(results):
+            with st.expander(f"Result {i+1} (Page {res.metadata.get('page', 'Unknown')})", expanded=True):
+                st.write(res.page_content)
+
+    # Clean up the temporary file
+    os.remove(tmp_file_path)
