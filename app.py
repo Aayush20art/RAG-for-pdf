@@ -103,7 +103,7 @@ st.markdown(
 # App Logic
 # ---------------------------------------------------------------------------
 st.title("PDF Semantic Search 🔴")
-st.write("Upload a PDF and search through its contents using HuggingFace Embeddings.")
+st.write("Upload a PDF and ask questions about its contents.")
 
 # Cache the embeddings model so it doesn't reload on every interaction
 @st.cache_resource
@@ -111,6 +111,9 @@ def get_embeddings_model():
     return HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
 embeddings = get_embeddings_model()
+
+# Initialize Groq client
+client = Groq(api_key=GROQ_API_KEY)
 
 # File Uploader
 uploaded_file = st.file_uploader("Upload your PDF document", type=["pdf"])
@@ -133,17 +136,49 @@ if uploaded_file is not None:
         st.success("PDF processed successfully!")
 
     # Search Interface
-    st.subheader("Search Document")
-    query = st.text_input("Enter your search query:")
+    st.subheader("Ask a Question")
+    query = st.text_input("What would you like to know about this document?")
     
     if query:
-        # Perform similarity search
+        # 1. Retrieve the most relevant text chunks from the PDF
         results = vector_store.similarity_search(query, k=2)
         
-        st.write(f"**Top results for:** '{query}'")
-        for i, res in enumerate(results):
-            with st.expander(f"Result {i+1} (Page {res.metadata.get('page', 'Unknown')})", expanded=True):
-                st.write(res.page_content)
+        # 2. Combine the retrieved chunks into a single context string
+        context_text = "\n\n".join([res.page_content for res in results])
+        
+        # 3. Create a prompt instructing the LLM to answer using only the context
+        prompt = f"""
+        Answer the following question based ONLY on the provided context from the user's document.
+        If the answer is not contained in the context, say "I cannot answer this based on the uploaded document."
+        
+        Context:
+        {context_text}
+        
+        Question: {query}
+        """
+        
+        with st.spinner("Thinking..."):
+            # 4. Send the prompt to Groq to generate the final answer
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    }
+                ],
+                model="llama3-8b-8192", # Using Llama 3 8B model via Groq
+                temperature=0.2,
+            )
+            
+            # Extract and display the answer
+            answer = chat_completion.choices[0].message.content
+            
+            st.markdown("### Answer")
+            st.write(answer)
+            
+            # Optional: Keep the retrieved text hidden in an expander for debugging
+            with st.expander("View Retrieved Context"):
+                st.write(context_text)
 
     # Clean up the temporary file
     os.remove(tmp_file_path)
