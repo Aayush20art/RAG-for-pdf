@@ -30,7 +30,7 @@ except (KeyError, FileNotFoundError):
     st.stop()
 
 # ---------------------------------------------------------------------------
-# Professional theme
+# Professional theme with continuous, subtle motion
 # ---------------------------------------------------------------------------
 st.markdown(
     """
@@ -47,21 +47,106 @@ st.markdown(
             --muted: #8b93a7;
             --accent: #6366f1;
             --accent-hover: #818cf8;
+            --accent-2: #8b5cf6;
+            --accent-3: #38bdf8;
         }
 
+        @property --angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+
+        /* ---------- Keyframes ---------- */
         @keyframes fade-in {
-            from { opacity: 0; transform: translateY(6px); }
+            from { opacity: 0; transform: translateY(8px); }
             to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin-border { to { --angle: 360deg; } }
+        @keyframes gradient-flow {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @keyframes drift-a {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50%      { transform: translate(7vw, 8vh) scale(1.12); }
+        }
+        @keyframes drift-b {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50%      { transform: translate(-8vw, -6vh) scale(1.15); }
+        }
+        @keyframes drift-c {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50%      { transform: translate(5vw, -9vh) scale(1.08); }
+        }
+        @keyframes grid-pan {
+            from { background-position: 0 0; }
+            to   { background-position: 48px 48px; }
+        }
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.55); }
+            50%      { box-shadow: 0 0 0 7px rgba(99,102,241,0); }
+        }
+        @keyframes pulse-ok {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); }
+            50%      { box-shadow: 0 0 0 6px rgba(74,222,128,0); }
+        }
+        @keyframes shimmer {
+            0%   { transform: translateX(-130%) skewX(-20deg); }
+            60%, 100% { transform: translateX(300%) skewX(-20deg); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-5px); }
+        }
+        @keyframes sweep {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+        @keyframes breathe {
+            0%, 100% { border-color: var(--border); }
+            50%      { border-color: rgba(99,102,241,0.55); }
         }
 
         /* ---------- Base ---------- */
         .stApp {
-            background-color: var(--bg);
+            background:
+                radial-gradient(900px 500px at 8% -10%, rgba(99,102,241,0.14), transparent 60%),
+                radial-gradient(800px 450px at 100% 0%, rgba(56,189,248,0.08), transparent 60%),
+                var(--bg);
             color: var(--text);
             font-family: 'Inter', sans-serif;
         }
         header[data-testid="stHeader"] { background: transparent; }
-        .block-container { padding-top: 2.5rem; max-width: 980px; }
+        .block-container { padding-top: 2.5rem; max-width: 980px; position: relative; z-index: 2; }
+
+        /* Slowly panning grid */
+        .stApp::before {
+            content: "";
+            position: fixed; inset: 0;
+            background-image:
+                linear-gradient(rgba(139,147,167,0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139,147,167,0.06) 1px, transparent 1px);
+            background-size: 48px 48px;
+            animation: grid-pan 10s linear infinite;
+            mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+            -webkit-mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+            pointer-events: none; z-index: 0;
+        }
+
+        /* Ambient drifting light */
+        .orb {
+            position: fixed; border-radius: 50%;
+            filter: blur(110px); pointer-events: none; z-index: 0;
+        }
+        .orb.a { width: 34vw; height: 34vw; left: -8vw; top: 4vh;
+                 background: var(--accent); opacity: 0.22; animation: drift-a 22s ease-in-out infinite; }
+        .orb.b { width: 28vw; height: 28vw; right: -6vw; top: 28vh;
+                 background: var(--accent-3); opacity: 0.12; animation: drift-b 26s ease-in-out infinite; }
+        .orb.c { width: 26vw; height: 26vw; left: 38vw; bottom: -12vh;
+                 background: var(--accent-2); opacity: 0.16; animation: drift-c 30s ease-in-out infinite; }
 
         h1, h2, h3, h4 {
             font-family: 'Inter', sans-serif !important;
@@ -72,19 +157,36 @@ st.markdown(
 
         /* ---------- Header ---------- */
         .app-header {
-            padding-bottom: 1.1rem;
-            margin-bottom: 1.4rem;
+            position: relative; overflow: hidden;
+            padding-bottom: 1.1rem; margin-bottom: 1.4rem;
             border-bottom: 1px solid var(--border);
-            animation: fade-in 0.4s ease both;
+            animation: fade-in 0.5s ease both;
         }
-        .app-header .eyebrow {
+        .app-header::after {
+            content: ""; position: absolute; left: 0; bottom: -1px;
+            height: 2px; width: 40%;
+            background: linear-gradient(90deg, transparent, var(--accent-hover), transparent);
+            animation: sweep 3.6s ease-in-out infinite;
+        }
+        .eyebrow {
+            display: inline-flex; align-items: center; gap: 8px;
             font-size: 0.75rem; font-weight: 600;
             letter-spacing: 0.1em; text-transform: uppercase;
             color: var(--accent-hover);
         }
+        .eyebrow .dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--accent);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
         .app-header h1 {
-            font-size: 1.9rem !important;
-            margin: 0.25rem 0 0.3rem !important;
+            font-size: 2rem !important;
+            margin: 0.35rem 0 0.3rem !important;
+            background: linear-gradient(90deg, #e6e8ee, #a5b4fc, #7dd3fc, #e6e8ee);
+            background-size: 300% 100%;
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient-flow 9s ease-in-out infinite;
         }
         .app-header p { color: var(--muted); font-size: 0.97rem; margin: 0; }
 
@@ -93,34 +195,49 @@ st.markdown(
             background: var(--surface);
             border-right: 1px solid var(--border);
         }
+        section[data-testid="stSidebar"]::after {
+            content: ""; position: absolute; top: 0; right: -1px; bottom: 0; width: 1px;
+            background: linear-gradient(180deg, transparent, var(--accent), transparent);
+            background-size: 100% 300%;
+            animation: gradient-flow 7s ease-in-out infinite;
+            pointer-events: none;
+        }
         section[data-testid="stSidebar"] h3 {
             font-size: 0.8rem !important;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--muted) !important;
-            font-weight: 600 !important;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--muted) !important; font-weight: 600 !important;
         }
         .status-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
         .tag {
+            display: inline-flex; align-items: center; gap: 6px;
             font-size: 0.75rem; font-weight: 500;
             padding: 4px 10px; border-radius: 6px;
-            color: var(--text);
-            background: var(--surface-2);
+            color: var(--text); background: var(--surface-2);
             border: 1px solid var(--border);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            animation: fade-in 0.4s ease both;
         }
+        .tag:hover { transform: translateY(-1px); border-color: var(--accent); }
         .tag.ok   { color: #86efac; border-color: rgba(134,239,172,0.3); background: rgba(34,197,94,0.08); }
+        .tag.ok::before {
+            content: ""; width: 6px; height: 6px; border-radius: 50%;
+            background: #4ade80; animation: pulse-ok 2s ease-in-out infinite;
+        }
         .tag.idle { color: var(--muted); }
 
-        /* ---------- File uploader ---------- */
+        /* ---------- File uploader (rotating accent border) ---------- */
         [data-testid="stFileUploaderDropzone"] {
-            background: var(--surface);
-            border: 1px dashed var(--border-strong);
-            border-radius: 10px;
-            transition: border-color 0.2s ease, background 0.2s ease;
+            border: 1.5px solid transparent !important;
+            border-radius: 12px !important;
+            background:
+                linear-gradient(var(--surface), var(--surface)) padding-box,
+                conic-gradient(from var(--angle), var(--border-strong) 0%, var(--accent) 20%, var(--accent-3) 35%, var(--border-strong) 55%, var(--accent-2) 80%, var(--border-strong) 100%) border-box !important;
+            animation: spin-border 6s linear infinite;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
         }
         [data-testid="stFileUploaderDropzone"]:hover {
-            border-color: var(--accent);
-            background: var(--surface-2);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(99,102,241,0.18);
         }
         [data-testid="stFileUploader"] label,
         [data-testid="stFileUploader"] small,
@@ -128,17 +245,24 @@ st.markdown(
 
         /* ---------- Buttons ---------- */
         .stButton > button, [data-testid="stFileUploader"] button {
-            background: var(--accent) !important;
-            color: #fff !important;
-            border: none !important;
-            border-radius: 8px;
-            font-weight: 500;
+            position: relative; overflow: hidden;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent)) !important;
+            background-size: 220% 100% !important;
+            animation: gradient-flow 8s ease-in-out infinite;
+            color: #fff !important; border: none !important;
+            border-radius: 8px; font-weight: 500;
             padding: 0.5rem 1.1rem;
-            transition: background 0.2s ease, transform 0.1s ease;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
         .stButton > button { width: 100%; }
+        .stButton > button::after {
+            content: ""; position: absolute; top: 0; bottom: 0; width: 36px;
+            background: rgba(255,255,255,0.22);
+            animation: shimmer 4s ease-in-out infinite;
+        }
         .stButton > button:hover, [data-testid="stFileUploader"] button:hover {
-            background: var(--accent-hover) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 22px rgba(99,102,241,0.35);
             color: #fff !important;
         }
         .stButton > button:active { transform: scale(0.98); }
@@ -148,9 +272,12 @@ st.markdown(
             background: var(--surface-2) !important;
             border: 1px solid var(--border) !important;
             border-radius: 8px !important;
-            transition: border-color 0.2s ease;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
-        div[data-baseweb="select"] > div:hover { border-color: var(--accent) !important; }
+        div[data-baseweb="select"] > div:hover {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+        }
         div[data-baseweb="select"] * { color: var(--text) !important; }
 
         /* ---------- Alerts ---------- */
@@ -158,6 +285,7 @@ st.markdown(
             background: var(--surface) !important;
             border: 1px solid var(--border) !important;
             border-radius: 10px !important;
+            animation: fade-in 0.4s ease both, breathe 4s ease-in-out infinite;
         }
 
         /* ---------- Chat ---------- */
@@ -167,7 +295,13 @@ st.markdown(
             border-radius: 12px;
             padding: 1rem 1.1rem;
             margin-bottom: 0.9rem;
-            animation: fade-in 0.3s ease both;
+            animation: fade-in 0.4s cubic-bezier(.2,.8,.2,1) both;
+            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+        [data-testid="stChatMessage"]:hover {
+            transform: translateX(3px);
+            border-color: var(--accent);
+            box-shadow: 0 6px 24px rgba(99,102,241,0.12);
         }
         [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
             background: var(--surface-2);
@@ -176,7 +310,9 @@ st.markdown(
             background-color: #475569 !important; color: #fff !important;
         }
         [data-testid="chatAvatarIcon-assistant"] {
-            background-color: var(--accent) !important; color: #fff !important;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2)) !important;
+            color: #fff !important;
+            animation: pulse-dot 2.8s ease-in-out infinite;
         }
         [data-testid="stChatMessage"] p,
         [data-testid="stChatMessage"] li { color: var(--text); line-height: 1.65; }
@@ -189,20 +325,27 @@ st.markdown(
             background: var(--surface);
             border: 1px solid var(--border) !important;
             border-radius: 10px;
+            transition: border-color 0.25s ease;
         }
+        [data-testid="stExpander"]:hover { border-color: var(--accent) !important; }
         [data-testid="stExpander"] summary { color: var(--muted) !important; }
 
-        /* ---------- Chat input ---------- */
+        /* ---------- Chat input (rotating accent ring) ---------- */
         [data-testid="stChatInput"], .stChatInputContainer > div {
-            background: var(--surface) !important;
-            border: 1px solid var(--border-strong) !important;
+            border: 1.5px solid transparent !important;
             border-radius: 12px !important;
-            transition: border-color 0.2s ease;
+            background:
+                linear-gradient(var(--surface), var(--surface)) padding-box,
+                conic-gradient(from var(--angle), var(--border-strong) 0%, var(--accent) 25%, var(--accent-3) 40%, var(--border-strong) 60%, var(--accent-2) 85%, var(--border-strong) 100%) border-box !important;
+            animation: spin-border 7s linear infinite;
+            transition: box-shadow 0.25s ease;
         }
         [data-testid="stChatInput"]:focus-within,
-        .stChatInputContainer > div:focus-within { border-color: var(--accent) !important; }
+        .stChatInputContainer > div:focus-within {
+            box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+        }
         [data-testid="stChatInput"] textarea,
-        .stChatInputContainer textarea { color: var(--text) !important; }
+        .stChatInputContainer textarea { color: var(--text) !important; caret-color: var(--accent-hover); }
         [data-testid="stBottom"] > div { background: transparent !important; }
 
         /* ---------- Misc ---------- */
@@ -210,19 +353,32 @@ st.markdown(
         .stSpinner > div { border-top-color: var(--accent) !important; }
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
         ::-webkit-scrollbar-track { background: var(--bg); }
 
         .empty-state {
-            margin: 1.5rem 0;
-            padding: 1.5rem;
-            text-align: center;
+            margin: 1.5rem 0; padding: 1.6rem; text-align: center;
             color: var(--muted);
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 12px;
+            animation: fade-in 0.6s ease both, float 6s ease-in-out infinite, breathe 4s ease-in-out infinite;
         }
         .empty-state strong { color: var(--text); font-weight: 600; }
+        .cursor {
+            display: inline-block; width: 8px; height: 1.05em;
+            background: var(--accent-hover); vertical-align: text-bottom;
+            margin-left: 3px; animation: blink 1s steps(2) infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
     </style>
+
+    <div class="orb a"></div>
+    <div class="orb b"></div>
+    <div class="orb c"></div>
     """,
     unsafe_allow_html=True,
 )
@@ -233,7 +389,7 @@ st.markdown(
 st.markdown(
     """
     <div class="app-header">
-        <div class="eyebrow">Document Intelligence</div>
+        <div class="eyebrow"><span class="dot"></span>Document Intelligence</div>
         <h1>PDF Assistant</h1>
         <p>Upload a PDF and ask questions. Answers are grounded in the document's content.</p>
     </div>
@@ -371,7 +527,10 @@ if vector_store is not None:
                 for chunk in chat_completion:
                     if chunk.choices[0].delta.content:
                         full_response += chunk.choices[0].delta.content
-                        response_placeholder.markdown(full_response + " ▌")
+                        response_placeholder.markdown(
+                            full_response + '<span class="cursor"></span>',
+                            unsafe_allow_html=True,
+                        )
 
                 response_placeholder.markdown(full_response)
 
